@@ -1,35 +1,53 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
+import React, { useState } from 'react';
+import { Login } from './components/Login';
+import { Header } from './components/Header';
+import { Dashboard } from './components/Dashboard';
+import { Patients } from './components/Patients';
+import { Procedures } from './components/Procedures';
+import { Scheduling } from './components/Scheduling';
+import { Professionals } from './components/Professionals';
+import { Budgets } from './components/Budgets';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const handleLogin = (email, password) => {
+    if (email && password) {
+      setIsAuthenticated(true);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setActiveTab('dashboard');
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
+
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="min-h-screen bg-gray-50">
+      <Header 
+        activeTab={activeTab} 
+        onTabChange={handleTabChange} 
+        onLogout={handleLogout} 
+      />
+      
+      <main className="pt-20">
+        {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'patients' && <Patients />}
+        {activeTab === 'procedures' && <Procedures />}
+        {activeTab === 'scheduling' && <Scheduling />}
+        {activeTab === 'professionals' && <Professionals />}
+        {activeTab === 'budgets' && <Budgets />}
+      </main>
+    </div>
+  );
 }
-
-export default App
