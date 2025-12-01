@@ -1,217 +1,193 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Search, Plus, Edit2, UserCheck, Stethoscope } from 'lucide-react';
+import { Search, Plus, Edit2, UserCheck, Stethoscope, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-
-const mockProfessionals = [
-  {
-    id: '1',
-    name: 'Dr. João Silva',
-    crm: 'CRO-SP 12345',
-    specialty: 'Clínica Geral',
-    phone: '(11) 99999-1111',
-    email: 'dr.joao@dentalcare.com',
-    address: 'Rua das Clínicas, 100 - São Paulo, SP',
-    experience: 15,
-    status: 'ativo'
-  },
-  {
-    id: '2',
-    name: 'Dra. Ana Santos',
-    crm: 'CRO-SP 67890',
-    specialty: 'Endodontia',
-    phone: '(11) 99999-2222',
-    email: 'dra.ana@dentalcare.com',
-    address: 'Av. Médica, 200 - São Paulo, SP',
-    experience: 12,
-    status: 'ativo'
-  },
-  {
-    id: '3',
-    name: 'Dr. Pedro Wilson',
-    crm: 'CRO-SP 11223',
-    specialty: 'Cirurgia Oral',
-    phone: '(11) 99999-3333',
-    email: 'dr.pedro@dentalcare.com',
-    address: 'Rua Cirúrgica, 300 - São Paulo, SP',
-    experience: 20,
-    status: 'ativo'
-  },
-  {
-    id: '4',
-    name: 'Dra. Carla Brown',
-    crm: 'CRO-SP 44556',
-    specialty: 'Ortodontia',
-    phone: '(11) 99999-4444',
-    email: 'dra.carla@dentalcare.com',
-    address: 'Av. Ortodôntica, 400 - São Paulo, SP',
-    experience: 8,
-    status: 'ativo'
-  },
-  {
-    id: '5',
-    name: 'Dr. Ricardo Martinez',
-    crm: 'CRO-SP 77889',
-    specialty: 'Implantodontia',
-    phone: '(11) 99999-5555',
-    email: 'dr.ricardo@dentalcare.com',
-    address: 'Rua Implantes, 500 - São Paulo, SP',
-    experience: 18,
-    status: 'inativo'
-  }
-];
-
-const mockSpecialties = [
-  'Clínica Geral',
-  'Endodontia',
-  'Ortodontia',
-  'Cirurgia Oral',
-  'Implantodontia',
-  'Dentística',
-  'Periodontia',
-  'Odontopediatria'
-];
-
-const realProfessionals = null;
-const realSpecialties = null;
+import { Badge } from './ui/badge';
 
 export const Professionals = () => {
-  const [professionals, setProfessionals] = useState(realProfessionals || mockProfessionals);
-  const specialties = realSpecialties || mockSpecialties;
-
+  const [professionals, setProfessionals] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProfessional, setSelectedProfessional] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [alertInfo, setAlertInfo] = useState({ open: false, title: '', message: '' });
 
-  const filteredProfessionals = professionals.filter(professional =>
-    professional.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    professional.crm.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    professional.specialty.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const specialties = ['Clínica Geral', 'Endodontia', 'Ortodontia', 'Cirurgia Oral', 'Implantodontia', 'Dentística'];
 
-  const handleProfessionalClick = (professional) => {
-    setSelectedProfessional(professional);
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'ACTIVE': return 'bg-green-100 text-green-800';
+      case 'INACTIVE': return 'bg-gray-100 text-gray-800';
+      case 'VACATION': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const translateStatus = (status) => {
+    switch (status) {
+      case 'ACTIVE': return 'Ativo';
+      case 'INACTIVE': return 'Inativo';
+      case 'VACATION': return 'Férias';
+      default: return status;
+    }
+  };
+
+  const formatPhone = (value) => {
+    if (!value) return "";
+    const numbers = value.replace(/\D/g, "");
+    const limited = numbers.substring(0, 11);
+    let formatted = limited;
+    if (limited.length > 2) {
+      formatted = `(${limited.substring(0, 2)}) ${limited.substring(2)}`;
+    }
+    if (limited.length > 7) {
+      formatted = `(${limited.substring(0, 2)}) ${limited.substring(2, 7)}-${limited.substring(7)}`;
+    }
+    return formatted;
+  };
+
+  const fetchPros = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/professionals/`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const formatted = data.map(p => ({
+          id: p.id,
+          name: p.name,
+          phone: p.phone,
+          email: p.email,
+          crm: p.cro,
+          specialty: p.specialty,
+          address: p.address,
+          experience: p.yearsExperience,
+          status: p.status
+        }));
+        setProfessionals(formatted);
+      }
+    } catch (error) { console.error(error); }
+  };
+
+  useEffect(() => { fetchPros(); }, []);
+
+  const showAlert = (title, message) => {
+    setAlertInfo({ open: true, title, message });
+  };
+
+  const handleSave = async () => {
+    if (!selectedProfessional.name || !selectedProfessional.crm || !selectedProfessional.phone) {
+      showAlert("Campos Obrigatórios", "Preencha Nome, CRO e Telefone.");
+      return;
+    }
+
+    const token = localStorage.getItem('accessToken');
+    const method = isEditMode ? 'PUT' : 'POST';
+    const url = isEditMode 
+      ? `${import.meta.env.VITE_API_URL}/professionals/${selectedProfessional.id}/`
+      : `${import.meta.env.VITE_API_URL}/professionals/`;
+
+    const payload = {
+      name: selectedProfessional.name,
+      phone: selectedProfessional.phone,
+      email: selectedProfessional.email,
+      cro: selectedProfessional.crm,
+      specialty: selectedProfessional.specialty,
+      address: selectedProfessional.address,
+      yearsExperience: selectedProfessional.experience,
+      status: selectedProfessional.status
+    };
+
+    try {
+      const response = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        fetchPros();
+        setIsDialogOpen(false);
+      }
+    } catch (error) { console.error(error); }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Deseja excluir este profissional?")) return;
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/professionals/${selectedProfessional.id}/`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        fetchPros();
+        setIsDialogOpen(false);
+      }
+    } catch (error) { console.error(error); }
+  };
+
+  const handleNew = () => {
+    setSelectedProfessional({ name: '', crm: '', specialty: specialties[0], phone: '', email: '', address: '', experience: 0, status: 'ACTIVE' });
     setIsEditMode(false);
     setIsDialogOpen(true);
   };
 
-  const handleEdit = () => {
-    setIsEditMode(true);
-  };
-
-  const handleSave = () => {
-    if (selectedProfessional) {
-      if (selectedProfessional.id === 'new') {
-        const newProfessional = {
-          ...selectedProfessional,
-          id: Date.now().toString()
-        };
-        setProfessionals([...professionals, newProfessional]);
-      } else {
-        setProfessionals(professionals.map(p => p.id === selectedProfessional.id ? selectedProfessional : p));
-      }
-      setIsEditMode(false);
-      setIsDialogOpen(false);
-    }
-  };
-
-  const handleNewProfessional = () => {
-    const newProfessional = {
-      id: 'new',
-      name: '',
-      crm: '',
-      specialty: '',
-      phone: '',
-      email: '',
-      address: '',
-      experience: 0,
-      status: 'ativo'
-    };
-    setSelectedProfessional(newProfessional);
+  const handleEdit = (pro) => {
+    setSelectedProfessional(pro);
     setIsEditMode(true);
     setIsDialogOpen(true);
   };
 
-  const getStatusColor = (status) => {
-    return status === 'ativo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
-  };
+  const filtered = professionals.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-gray-900">Profissionais</h2>
-        <Button onClick={handleNewProfessional} className="bg-blue-600 hover:bg-blue-700 hover-lift">
-          <Plus size={16} className="mr-2" />
-          Novo Profissional
+        <Button onClick={handleNew} className="bg-blue-600 hover:bg-blue-700">
+          <Plus size={16} className="mr-2" /> Novo Profissional
         </Button>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Lista de Profissionais</CardTitle>
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <Input
-                placeholder="Buscar profissionais..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+          <div className="relative flex-1 w-full">
+            <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
           </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>CRO</TableHead>
-                <TableHead>Especialidade</TableHead>
-                <TableHead>Experiência</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead className="text-left">Nome</TableHead>
+                <TableHead className="text-left">CRO</TableHead>
+                <TableHead className="text-left">Especialidade</TableHead>
+                <TableHead className="text-left">Status</TableHead>
+                <TableHead className="text-left">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProfessionals.map((professional) => (
-                <TableRow key={professional.id} className="hover:bg-gray-50 cursor-pointer">
-                  <TableCell>
-                    <button
-                      onClick={() => handleProfessionalClick(professional)}
-                      className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                    >
-                      {professional.name}
-                    </button>
+              {filtered.map((pro) => (
+                <TableRow key={pro.id}>
+                  <TableCell className="text-left">{pro.name}</TableCell>
+                  <TableCell className="text-left">{pro.crm}</TableCell>
+                  <TableCell className="text-left">{pro.specialty}</TableCell>
+                  <TableCell className="text-left">
+                    <Badge className={getStatusColor(pro.status)}>
+                      {translateStatus(pro.status)}
+                    </Badge>
                   </TableCell>
-                  <TableCell className="font-mono text-sm">{professional.crm}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <Stethoscope size={14} className="mr-2 text-blue-600" />
-                      {professional.specialty}
-                    </div>
-                  </TableCell>
-                  <TableCell>{professional.experience} anos</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(professional.status)}`}>
-                      {professional.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleProfessionalClick(professional)}
-                      className="hover:bg-blue-50 hover:text-blue-600"
-                    >
-                      <UserCheck size={16} className="mr-1" />
-                      Ver
+                  <TableCell className="text-left">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(pro)}>
+                      <Edit2 size={16} className="mr-1" /> Editar
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -223,146 +199,76 @@ export const Professionals = () => {
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? (selectedProfessional?.name ? 'Editar Profissional' : 'Novo Profissional') : 'Detalhes do Profissional'}
-            </DialogTitle>
-          </DialogHeader>
-
+          <DialogHeader><DialogTitle>{isEditMode ? 'Editar' : 'Novo'}</DialogTitle></DialogHeader>
           {selectedProfessional && (
-            <div className="space-y-6">
+            <div className="space-y-6 text-left">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="name">Nome Completo</Label>
-                  <Input
-                    id="name"
-                    value={selectedProfessional.name}
-                    disabled={!isEditMode}
-                    onChange={(e) => setSelectedProfessional({...selectedProfessional, name: e.target.value})}
-                    placeholder="Digite o nome do profissional"
+                <div className="space-y-2 text-left">
+                  <Label>Nome *</Label>
+                  <Input value={selectedProfessional.name} onChange={(e) => setSelectedProfessional({...selectedProfessional, name: e.target.value})} />
+                </div>
+                <div className="space-y-2 text-left">
+                  <Label>CRO *</Label>
+                  <Input value={selectedProfessional.crm} onChange={(e) => setSelectedProfessional({...selectedProfessional, crm: e.target.value})} />
+                </div>
+                <div className="space-y-2 text-left">
+                  <Label>Especialidade</Label>
+                  <Select value={selectedProfessional.specialty} onValueChange={(v) => setSelectedProfessional({...selectedProfessional, specialty: v})}>
+                    <SelectTrigger><span>{selectedProfessional.specialty || "Selecione"}</span></SelectTrigger>
+                    <SelectContent>{specialties.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 text-left">
+                  <Label>Telefone *</Label>
+                  <Input 
+                    type="tel"
+                    value={selectedProfessional.phone} 
+                    onChange={(e) => setSelectedProfessional({...selectedProfessional, phone: formatPhone(e.target.value)})}
+                    placeholder="(99) 99999-9999"
+                    maxLength={15}
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="crm">CRO</Label>
-                  <Input
-                    id="crm"
-                    value={selectedProfessional.crm}
-                    disabled={!isEditMode}
-                    onChange={(e) => setSelectedProfessional({...selectedProfessional, crm: e.target.value})}
-                    placeholder="CRO-SP 12345"
-                  />
+                <div className="space-y-2 text-left">
+                  <Label>Email</Label>
+                  <Input value={selectedProfessional.email} onChange={(e) => setSelectedProfessional({...selectedProfessional, email: e.target.value})} />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="specialty">Especialidade</Label>
-                  {isEditMode ? (
-                    <Select
-                      value={selectedProfessional.specialty}
-                      onValueChange={(value) => setSelectedProfessional({...selectedProfessional, specialty: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione a especialidade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {specialties.map((specialty) => (
-                          <SelectItem key={specialty} value={specialty}>
-                            {specialty}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input value={selectedProfessional.specialty} disabled />
-                  )}
+                <div className="space-y-2 text-left">
+                  <Label>Experiência (Anos)</Label>
+                  <Input type="number" value={selectedProfessional.experience} onChange={(e) => setSelectedProfessional({...selectedProfessional, experience: e.target.value})} />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={selectedProfessional.phone}
-                    disabled={!isEditMode}
-                    onChange={(e) => setSelectedProfessional({...selectedProfessional, phone: e.target.value})}
-                    placeholder="(11) 99999-9999"
-                  />
+                <div className="space-y-2 text-left">
+                  <Label>Status</Label>
+                  <Select value={selectedProfessional.status} onValueChange={(v) => setSelectedProfessional({...selectedProfessional, status: v})}>
+                    <SelectTrigger><span>{translateStatus(selectedProfessional.status)}</span></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">Ativo</SelectItem>
+                      <SelectItem value="INACTIVE">Inativo</SelectItem>
+                      <SelectItem value="VACATION">Férias</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={selectedProfessional.email}
-                    disabled={!isEditMode}
-                    onChange={(e) => setSelectedProfessional({...selectedProfessional, email: e.target.value})}
-                    placeholder="email@exemplo.com"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="experience">Anos de Experiência</Label>
-                  <Input
-                    id="experience"
-                    type="number"
-                    value={selectedProfessional.experience}
-                    disabled={!isEditMode}
-                    onChange={(e) => setSelectedProfessional({...selectedProfessional, experience: parseInt(e.target.value) || 0})}
-                    placeholder="0"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  {isEditMode ? (
-                    <Select
-                      value={selectedProfessional.status}
-                      onValueChange={(value) => setSelectedProfessional({...selectedProfessional, status: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ativo">Ativo</SelectItem>
-                        <SelectItem value="inativo">Inativo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input value={selectedProfessional.status} disabled />
-                  )}
-                </div>
-                
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="address">Endereço</Label>
-                  <Input
-                    id="address"
-                    value={selectedProfessional.address}
-                    disabled={!isEditMode}
-                    onChange={(e) => setSelectedProfessional({...selectedProfessional, address: e.target.value})}
-                    placeholder="Digite o endereço"
-                  />
+                <div className="space-y-2 col-span-2 text-left">
+                  <Label>Endereço</Label>
+                  <Input value={selectedProfessional.address} onChange={(e) => setSelectedProfessional({...selectedProfessional, address: e.target.value})} />
                 </div>
               </div>
-
-              <div className="flex justify-end space-x-2">
-                {isEditMode ? (
-                  <>
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-                      Salvar Alterações
-                    </Button>
-                  </>
-                ) : (
-                  <Button onClick={handleEdit} className="bg-blue-600 hover:bg-blue-700">
-                    <Edit2 size={16} className="mr-2" />
-                    Editar Profissional
-                  </Button>
-                )}
+              <div className="flex justify-between space-x-2">
+                <div>{isEditMode && <Button variant="destructive" onClick={handleDelete}><Trash2 size={16} className="mr-2" /> Excluir</Button>}</div>
+                <div className="flex space-x-2">
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">Salvar</Button>
+                </div>
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={alertInfo.open} onOpenChange={(open) => setAlertInfo({ ...alertInfo, open })}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader><DialogTitle className="text-center text-red-600">{alertInfo.title}</DialogTitle></DialogHeader>
+          <div className="py-4"><p className="text-gray-700">{alertInfo.message}</p></div>
+          <div className="flex justify-center"><Button onClick={() => setAlertInfo({ ...alertInfo, open: false })}>Entendido</Button></div>
         </DialogContent>
       </Dialog>
     </div>

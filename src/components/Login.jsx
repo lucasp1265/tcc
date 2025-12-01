@@ -8,10 +8,38 @@ import { ToothIcon } from './ToothIcon';
 export const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogin(email, password);
+    setError('');
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/token/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          username: email, 
+          password: password 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('accessToken', data.access);
+        localStorage.setItem('refreshToken', data.refresh);
+        
+        onLogin(email, password); 
+      } else {
+        setError('Usuário ou senha incorretos');
+      }
+    } catch (err) {
+      setError('Erro de conexão com o servidor');
+      console.error(err);
+    }
   };
 
   return (
@@ -54,6 +82,7 @@ export const Login = ({ onLogin }) => {
                 className="h-11"
               />
             </div>
+            {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
             <Button 
               type="submit" 
               className="w-full h-11 bg-blue-600 hover:bg-blue-700 transition-colors"
