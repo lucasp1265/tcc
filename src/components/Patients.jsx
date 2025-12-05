@@ -18,23 +18,22 @@ export const Patients = () => {
 
   const formatPhone = (value) => {
     if (!value) return "";
-    
-    // Remove tudo que não é dígito
     const numbers = value.replace(/\D/g, "");
-    
-    // Limita a 11 dígitos (DDD + 9 dígitos)
     const limited = numbers.substring(0, 11);
-
-    // Aplica a máscara (XX) XXXXX-XXXX
     let formatted = limited;
-    if (limited.length > 2) {
-      formatted = `(${limited.substring(0, 2)}) ${limited.substring(2)}`;
-    }
-    if (limited.length > 7) {
-      formatted = `(${limited.substring(0, 2)}) ${limited.substring(2, 7)}-${limited.substring(7)}`;
-    }
-    
+    if (limited.length > 2) formatted = `(${limited.substring(0, 2)}) ${limited.substring(2)}`;
+    if (limited.length > 7) formatted = `(${limited.substring(0, 2)}) ${limited.substring(2, 7)}-${limited.substring(7)}`;
     return formatted;
+  };
+
+  const formatCPF = (value) => {
+    if (!value) return "";
+    const numbers = value.replace(/\D/g, "");
+    const limited = numbers.substring(0, 11);
+    return limited.replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .replace(/(-\d{2})\d+?$/, '$1');
   };
 
   const fetchPatients = async () => {
@@ -49,6 +48,7 @@ export const Patients = () => {
           id: p.id,
           fileNumber: `P${String(p.id).padStart(3, '0')}`,
           name: p.name,
+          cpf: formatCPF(p.cpf || ''), 
           phone: p.phone,
           email: p.email,
           address: p.address,
@@ -67,8 +67,8 @@ export const Patients = () => {
   };
 
   const handleSave = async () => {
-    if (!selectedPatient.name || !selectedPatient.phone || !selectedPatient.email) {
-      showAlert("Campos Obrigatórios", "Por favor, preencha Nome, Telefone e Email.");
+    if (!selectedPatient.name || !selectedPatient.phone || !selectedPatient.email || !selectedPatient.cpf) {
+      showAlert("Atenção", "Preencha Nome, CPF, Telefone e Email.");
       return;
     }
 
@@ -78,8 +78,10 @@ export const Patients = () => {
       ? `${import.meta.env.VITE_API_URL}/patients/${selectedPatient.id}/`
       : `${import.meta.env.VITE_API_URL}/patients/`;
 
+    const cleanCPF = selectedPatient.cpf.replace(/\D/g, "");
     const payload = {
       name: selectedPatient.name,
+      cpf: cleanCPF,
       phone: selectedPatient.phone,
       email: selectedPatient.email,
       birthDate: selectedPatient.dateOfBirth,
@@ -98,7 +100,8 @@ export const Patients = () => {
         fetchPatients();
         setIsDialogOpen(false);
       } else {
-        showAlert("Erro", "Não foi possível salvar o paciente.");
+        const errorData = await response.json();
+        showAlert("Erro", errorData.cpf ? "CPF já cadastrado." : "Erro ao salvar.");
       }
     } catch (error) { console.error(error); }
   };
@@ -119,7 +122,7 @@ export const Patients = () => {
   };
 
   const handleNewPatient = () => {
-    setSelectedPatient({ name: '', phone: '', email: '', dateOfBirth: '', address: '', medicalHistory: '' });
+    setSelectedPatient({ name: '', cpf: '', phone: '', email: '', dateOfBirth: '', address: '', medicalHistory: '' });
     setIsEditMode(false);
     setIsDialogOpen(true);
   };
@@ -131,7 +134,8 @@ export const Patients = () => {
   };
 
   const filteredPatients = patients.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.cpf && p.cpf.includes(searchTerm))
   );
 
   return (
@@ -149,7 +153,7 @@ export const Patients = () => {
           <div className="flex items-center space-x-4">
             <div className="relative flex-1 w-full">
               <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+              <Input placeholder="Buscar por nome ou CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
             </div>
           </div>
         </CardHeader>
@@ -159,6 +163,7 @@ export const Patients = () => {
               <TableRow>
                 <TableHead className="text-left">Número</TableHead>
                 <TableHead className="text-left">Nome</TableHead>
+                <TableHead className="text-left">CPF</TableHead>
                 <TableHead className="text-left">Telefone</TableHead>
                 <TableHead className="text-left">Ações</TableHead>
               </TableRow>
@@ -168,6 +173,7 @@ export const Patients = () => {
                 <TableRow key={patient.id} className="hover:bg-gray-50">
                   <TableCell className="text-left font-medium">{patient.fileNumber}</TableCell>
                   <TableCell className="text-left">{patient.name}</TableCell>
+                  <TableCell className="text-left">{patient.cpf}</TableCell>
                   <TableCell className="text-left">{patient.phone}</TableCell>
                   <TableCell className="text-left">
                     <Button variant="ghost" size="sm" onClick={() => handleEditClick(patient)}>
@@ -192,14 +198,12 @@ export const Patients = () => {
                   <Input value={selectedPatient.name} onChange={(e) => setSelectedPatient({...selectedPatient, name: e.target.value})} />
                 </div>
                 <div className="space-y-2 text-left">
+                  <Label>CPF *</Label>
+                  <Input value={selectedPatient.cpf} onChange={(e) => setSelectedPatient({...selectedPatient, cpf: formatCPF(e.target.value)})} maxLength={14} />
+                </div>
+                <div className="space-y-2 text-left">
                   <Label>Telefone *</Label>
-                  <Input 
-                    type="tel"
-                    value={selectedPatient.phone} 
-                    onChange={(e) => setSelectedPatient({...selectedPatient, phone: formatPhone(e.target.value)})}
-                    placeholder="(99) 99999-9999"
-                    maxLength={15}
-                  />
+                  <Input type="tel" value={selectedPatient.phone} onChange={(e) => setSelectedPatient({...selectedPatient, phone: formatPhone(e.target.value)})} maxLength={15} />
                 </div>
                 <div className="space-y-2 text-left">
                   <Label>E-mail *</Label>

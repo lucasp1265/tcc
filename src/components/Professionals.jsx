@@ -37,20 +37,6 @@ export const Professionals = () => {
     }
   };
 
-  const formatPhone = (value) => {
-    if (!value) return "";
-    const numbers = value.replace(/\D/g, "");
-    const limited = numbers.substring(0, 11);
-    let formatted = limited;
-    if (limited.length > 2) {
-      formatted = `(${limited.substring(0, 2)}) ${limited.substring(2)}`;
-    }
-    if (limited.length > 7) {
-      formatted = `(${limited.substring(0, 2)}) ${limited.substring(2, 7)}-${limited.substring(7)}`;
-    }
-    return formatted;
-  };
-
   const fetchPros = async () => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -220,13 +206,7 @@ export const Professionals = () => {
                 </div>
                 <div className="space-y-2 text-left">
                   <Label>Telefone *</Label>
-                  <Input 
-                    type="tel"
-                    value={selectedProfessional.phone} 
-                    onChange={(e) => setSelectedProfessional({...selectedProfessional, phone: formatPhone(e.target.value)})}
-                    placeholder="(99) 99999-9999"
-                    maxLength={15}
-                  />
+                  <Input value={selectedProfessional.phone} onChange={(e) => setSelectedProfessional({...selectedProfessional, phone: e.target.value})} />
                 </div>
                 <div className="space-y-2 text-left">
                   <Label>Email</Label>

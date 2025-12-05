@@ -24,9 +24,9 @@ export const Budgets = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'PENDING': return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200';
-      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200';
+      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200';
       case 'COMPLETED': return 'bg-green-100 text-green-800 hover:bg-green-200 border-green-200';
-      case 'CANCELLED': return 'bg-red-100 text-red-800 hover:bg-red-200 border-red-200';
+      case 'CANCELLED': return 'bg-red-100 text-red-800 hover:bg-red-100 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -203,7 +203,7 @@ export const Budgets = () => {
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{isEditMode ? 'Editar' : 'Novo'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isEditMode ? 'Editar' : 'Novo Orçamento'}</DialogTitle></DialogHeader>
           {selectedBudget && (
             <div className="space-y-4 text-left">
               <div className="grid grid-cols-2 gap-4">

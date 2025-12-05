@@ -49,7 +49,7 @@ export const Scheduling = () => {
         const formatted = schedules.map(s => ({
           id: s.id,
           date: s.date,
-          time: s.time.substring(0, 5),
+          time: s.startTime ? s.startTime.substring(0, 5) : (s.time ? s.time.substring(0, 5) : "00:00"),
           patientId: s.patient,
           professionalId: s.professional,
           procedureId: s.procedure,
@@ -70,7 +70,7 @@ export const Scheduling = () => {
 
   const handleSave = async () => {
     if (!currentAppointment.date || !currentAppointment.time || !currentAppointment.patientId) {
-      showAlert("Campos Obrigatórios", "Selecione Data, Horário e Paciente.");
+      showAlert("Atenção", "Preencha Data, Horário e Paciente.");
       return;
     }
 
@@ -80,9 +80,15 @@ export const Scheduling = () => {
       ? `${import.meta.env.VITE_API_URL}/schedules/${currentAppointment.id}/`
       : `${import.meta.env.VITE_API_URL}/schedules/`;
 
+    const [hour, minute] = currentAppointment.time.split(':').map(Number);
+    const endHour = hour + 1;
+    const endTime = `${String(endHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+    const startTime = `${currentAppointment.time}:00`;
+
     const payload = {
       date: currentAppointment.date,
-      time: currentAppointment.time,
+      startTime: startTime,
+      endTime: endTime,
       patient: currentAppointment.patientId,
       professional: currentAppointment.professionalId,
       procedure: currentAppointment.procedureId
@@ -97,6 +103,8 @@ export const Scheduling = () => {
       if (response.ok) {
         fetchData();
         setIsDialogOpen(false);
+      } else {
+         showAlert("Erro", "Erro ao salvar. Verifique se há conflito de horário.");
       }
     } catch (error) { console.error(error); }
   };
@@ -133,10 +141,9 @@ export const Scheduling = () => {
 
   const dayAppointments = appointments.filter(a => a.date === selectedDate.toISOString().split('T')[0]);
   
-  // Cálculo de estatísticas do dia
   const totalSlots = timeSlots.length;
   const occupiedSlots = dayAppointments.length;
-  const availableSlots = totalSlots - occupiedSlots;
+  const availableSlots = Math.max(0, totalSlots - occupiedSlots);
   const occupancyRate = Math.round((occupiedSlots / totalSlots) * 100);
 
   return (
@@ -149,7 +156,6 @@ export const Scheduling = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna Esquerda: Calendário */}
         <div className="lg:col-span-1 space-y-6">
           <Card>
             <CardHeader><CardTitle>Calendário</CardTitle></CardHeader>
@@ -159,9 +165,7 @@ export const Scheduling = () => {
           </Card>
         </div>
 
-        {/* Coluna Direita: Resumo + Lista */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Card de Resumo do Dia */}
           <Card className="bg-white border-blue-100 shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
@@ -174,7 +178,7 @@ export const Scheduling = () => {
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-4 mt-4">
-                <div className="bg-gray-50 p-3 rounded-lg text-center border">
+                <div className="bg-gray-50 p-3 rounded-lg text-center border border-gray-200">
                   <span className="block text-2xl font-bold text-gray-800">{occupiedSlots}</span>
                   <span className="text-xs text-gray-500 uppercase">Agendados</span>
                 </div>
@@ -205,9 +209,9 @@ export const Scheduling = () => {
                       <div className="flex items-center gap-4">
                         <div className="p-2 bg-blue-50 rounded-full"><Clock size={20} className="text-blue-600"/></div>
                         <div>
-                          <p className="font-bold text-lg text-gray-800">{apt.time}</p>
-                          <p className="font-medium">{apt.patientName}</p>
-                          <p className="text-xs text-gray-500">{apt.procName} com {apt.proName}</p>
+                          <p className="font-bold text-lg text-gray-800 text-left">{apt.time}</p>
+                          <p className="font-medium text-gray-900 text-left">{apt.patientName}</p>
+                          <p className="text-xs text-gray-500 text-left">{apt.procName} com {apt.proName}</p>
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => handleEdit(apt)}><Edit2 size={16} className="text-gray-500"/></Button>
@@ -221,33 +225,35 @@ export const Scheduling = () => {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{isEditMode ? 'Editar' : 'Novo'}</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>{isEditMode ? 'Editar' : 'Novo Agendamento'}</DialogTitle></DialogHeader>
           <div className="space-y-4 text-left">
-            <div className="space-y-2 text-left"><Label>Data *</Label><Input type="date" value={currentAppointment.date} onChange={(e) => setCurrentAppointment({...currentAppointment, date: e.target.value})} /></div>
-            <div className="space-y-2 text-left"><Label>Horário *</Label>
-              <Select value={currentAppointment.time} onValueChange={(v) => setCurrentAppointment({...currentAppointment, time: v})}>
-                <SelectTrigger><span>{currentAppointment.time || "Selecione"}</span></SelectTrigger>
-                <SelectContent>{timeSlots.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 text-left"><Label>Paciente *</Label>
-              <Select value={String(currentAppointment.patientId)} onValueChange={(v) => setCurrentAppointment({...currentAppointment, patientId: v})}>
-                <SelectTrigger><span>{patientsList.find(p => String(p.id) === String(currentAppointment.patientId))?.name || "Selecione"}</span></SelectTrigger>
-                <SelectContent>{patientsList.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 text-left"><Label>Profissional</Label>
-              <Select value={String(currentAppointment.professionalId)} onValueChange={(v) => setCurrentAppointment({...currentAppointment, professionalId: v})}>
-                <SelectTrigger><span>{prosList.find(p => String(p.id) === String(currentAppointment.professionalId))?.name || "Selecione"}</span></SelectTrigger>
-                <SelectContent>{prosList.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 text-left"><Label>Procedimento</Label>
-              <Select value={String(currentAppointment.procedureId)} onValueChange={(v) => setCurrentAppointment({...currentAppointment, procedureId: v})}>
-                <SelectTrigger><span>{procList.find(p => String(p.id) === String(currentAppointment.procedureId))?.name || "Selecione"}</span></SelectTrigger>
-                <SelectContent>{procList.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2 text-left"><Label>Data *</Label><Input type="date" value={currentAppointment.date} onChange={(e) => setCurrentAppointment({...currentAppointment, date: e.target.value})} /></div>
+              <div className="space-y-2 text-left"><Label>Horário *</Label>
+                <Select value={currentAppointment.time} onValueChange={(v) => setCurrentAppointment({...currentAppointment, time: v})}>
+                  <SelectTrigger><span>{currentAppointment.time || "Selecione"}</span></SelectTrigger>
+                  <SelectContent>{timeSlots.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 col-span-2 text-left"><Label>Paciente *</Label>
+                <Select value={String(currentAppointment.patientId)} onValueChange={(v) => setCurrentAppointment({...currentAppointment, patientId: v})}>
+                  <SelectTrigger><span>{patientsList.find(p => String(p.id) === String(currentAppointment.patientId))?.name || "Selecione"}</span></SelectTrigger>
+                  <SelectContent>{patientsList.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 text-left"><Label>Profissional</Label>
+                <Select value={String(currentAppointment.professionalId)} onValueChange={(v) => setCurrentAppointment({...currentAppointment, professionalId: v})}>
+                  <SelectTrigger><span>{prosList.find(p => String(p.id) === String(currentAppointment.professionalId))?.name || "Selecione"}</span></SelectTrigger>
+                  <SelectContent>{prosList.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 text-left"><Label>Procedimento</Label>
+                <Select value={String(currentAppointment.procedureId)} onValueChange={(v) => setCurrentAppointment({...currentAppointment, procedureId: v})}>
+                  <SelectTrigger><span>{procList.find(p => String(p.id) === String(currentAppointment.procedureId))?.name || "Selecione"}</span></SelectTrigger>
+                  <SelectContent>{procList.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <div className="flex justify-between mt-4">
